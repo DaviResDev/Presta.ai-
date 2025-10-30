@@ -7,12 +7,11 @@ interface ComoFuncionamosPageProps {
 
 export function ComoFuncionamosPage({ onNavigate }: ComoFuncionamosPageProps) {
   return (
-    <div className="min-h-screen bg-[#C8D5B9] flex items-center justify-center p-8">
-      <div className="bg-white rounded-[40px] w-full max-w-7xl shadow-lg">
-        <TopBar activeLink="como-funcionamos" onNavigate={onNavigate} />
+    <div className="min-h-screen bg-white">
+      <TopBar activeLink="como-funcionamos" onNavigate={onNavigate} />
 
-        {/* Main Content */}
-        <div className="py-16 px-12">
+      {/* Main Content */}
+      <div className="py-16 px-20 max-w-[1400px] mx-auto">
           {/* Título */}
           <div className="text-center mb-4">
             <h1 className="text-5xl mb-3">Como funcionamos?</h1>
@@ -110,7 +109,6 @@ export function ComoFuncionamosPage({ onNavigate }: ComoFuncionamosPageProps) {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }

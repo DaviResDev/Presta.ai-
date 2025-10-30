@@ -14,13 +14,12 @@ export function CadastroPage({ onNavigate }: CadastroPageProps) {
   const [tipoCadastro, setTipoCadastro] = useState<"usuario" | "prestador">("usuario");
 
   return (
-    <div className="min-h-screen bg-[#C8D5B9] flex items-center justify-center p-8">
-      <div className="bg-white rounded-[40px] w-full max-w-7xl shadow-lg">
-        <TopBar activeLink="cadastro" onNavigate={onNavigate} />
+    <div className="min-h-screen bg-white">
+      <TopBar activeLink="cadastro" onNavigate={onNavigate} />
 
-        {/* Main Content */}
-        <div className="flex items-center justify-center py-16 px-12">
-          <div className="w-full max-w-md">
+      {/* Main Content */}
+      <div className="flex items-center justify-center py-16 px-12">
+        <div className="w-full max-w-md">
             <div className="text-center mb-10">
               <h1 className="text-4xl mb-2">
                 {tipoCadastro === "usuario" ? "Cadastro Usuário" : "Cadastro Prestador de Serviço"}
@@ -61,7 +60,6 @@ export function CadastroPage({ onNavigate }: CadastroPageProps) {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 }
