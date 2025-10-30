@@ -55,7 +55,10 @@ export function EntrarPage({ onNavigate }: EntrarPageProps) {
 
               {/* Botões */}
               <div className="flex gap-3 pt-4">
-                <Button className="flex-1 bg-[#FF6B35] hover:bg-[#e55a28] text-white py-6 rounded-xl">
+                <Button 
+                  onClick={() => onNavigate?.("concluido")}
+                  className="flex-1 bg-[#FF6B35] hover:bg-[#e55a28] text-white py-6 rounded-xl"
+                >
                   Avançar
                 </Button>
                 <Button 

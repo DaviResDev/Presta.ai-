@@ -54,9 +54,9 @@ export function CadastroPage({ onNavigate }: CadastroPageProps) {
 
             <div className="bg-white rounded-2xl p-8 border border-gray-100">
               {tipoCadastro === "usuario" ? (
-                <FormCadastroUsuario />
+                <FormCadastroUsuario onNavigate={onNavigate} />
               ) : (
-                <FormCadastroPrestador />
+                <FormCadastroPrestador onNavigate={onNavigate} />
               )}
             </div>
           </div>
@@ -66,7 +66,11 @@ export function CadastroPage({ onNavigate }: CadastroPageProps) {
   );
 }
 
-function FormCadastroUsuario() {
+interface FormCadastroUsuarioProps {
+  onNavigate?: (page: string) => void;
+}
+
+function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
   return (
     <div className="space-y-5">
       {/* Nome Completo */}
@@ -143,7 +147,10 @@ function FormCadastroUsuario() {
       </div>
 
       {/* Botão Avançar */}
-      <Button className="w-full bg-[#FF6B35] hover:bg-[#e55a28] text-white py-6 rounded-xl text-lg mt-6">
+      <Button 
+        onClick={() => onNavigate?.("concluido")}
+        className="w-full bg-[#FF6B35] hover:bg-[#e55a28] text-white py-6 rounded-xl text-lg mt-6"
+      >
         Avançar
       </Button>
 
@@ -158,7 +165,11 @@ function FormCadastroUsuario() {
   );
 }
 
-function FormCadastroPrestador() {
+interface FormCadastroPrestadorProps {
+  onNavigate?: (page: string) => void;
+}
+
+function FormCadastroPrestador({ onNavigate }: FormCadastroPrestadorProps) {
   return (
     <div className="space-y-5">
       {/* Nome */}
@@ -234,7 +245,10 @@ function FormCadastroPrestador() {
       </div>
 
       {/* Botão Avançar */}
-      <Button className="w-full bg-[#FF6B35] hover:bg-[#e55a28] text-white py-6 rounded-xl text-lg mt-6">
+      <Button 
+        onClick={() => onNavigate?.("concluido")}
+        className="w-full bg-[#FF6B35] hover:bg-[#e55a28] text-white py-6 rounded-xl text-lg mt-6"
+      >
         Avançar
       </Button>
     </div>

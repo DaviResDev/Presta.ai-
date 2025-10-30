@@ -24,6 +24,7 @@ export function TopBar({ activeLink = "inicio", onNavigate }: TopBarProps) {
             alt="presta.ai logo" 
             className="w-10 h-10 object-contain"
           />
+          <span className="text-[#FF6B35] text-xl">presta.ai</span>
         </button>
 
         <nav className="flex items-center gap-6">
@@ -41,12 +42,18 @@ export function TopBar({ activeLink = "inicio", onNavigate }: TopBarProps) {
             Serviços
           </button>
           <button
-            className="text-sm text-gray-700 hover:text-[#FF6B35] transition"
+            onClick={() => handleNavigation("como-funcionamos")}
+            className={`text-sm transition ${
+              activeLink === "como-funcionamos" ? "text-[#FF6B35]" : "text-gray-700 hover:text-[#FF6B35]"
+            }`}
           >
             Como funcionamos?
           </button>
           <button
-            className="text-sm text-gray-700 hover:text-[#FF6B35] transition"
+            onClick={() => handleNavigation("entrar")}
+            className={`text-sm transition ${
+              activeLink === "entrar" ? "text-[#FF6B35]" : "text-gray-700 hover:text-[#FF6B35]"
+            }`}
           >
             Entrar
           </button>
