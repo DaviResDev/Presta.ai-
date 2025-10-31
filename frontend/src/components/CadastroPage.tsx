@@ -4,9 +4,20 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
+import { ScrollArea } from "./ui/scroll-area";
 import { TopBar } from "./TopBar";
 import { supabase } from "../lib/supabase";
 import { toast } from "sonner";
+import {
+  formatCPF,
+  formatDate,
+  formatDocument,
+  formatDateToDB,
+  isValidEmail,
+  isValidCPF,
+  unformatCPF,
+  unformatDocument,
+} from "../lib/formatters";
 
 interface CadastroPageProps {
   onNavigate?: (page: string) => void;
@@ -16,24 +27,25 @@ export function CadastroPage({ onNavigate }: CadastroPageProps) {
   const [tipoCadastro, setTipoCadastro] = useState<"usuario" | "prestador">("usuario");
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="h-full bg-white flex flex-col overflow-hidden">
       <TopBar activeLink="cadastro" onNavigate={onNavigate} />
 
       {/* Main Content */}
-      <div className="flex items-center justify-center py-16 px-12">
-        <div className="w-full max-w-md">
-            <div className="text-center mb-10">
-              <h1 className="text-4xl mb-2">
+      <ScrollArea className="flex-1">
+        <div className="flex items-center justify-center min-h-full px-4 sm:px-6 py-2">
+          <div className="w-full max-w-[450px]">
+            <div className="text-center mb-3">
+              <h1 className="text-2xl mb-1">
                 {tipoCadastro === "usuario" ? "Cadastro Usuário" : "Cadastro Prestador de Serviço"}
               </h1>
-              <h2 className="text-[#FF6B35] text-3xl">Dados Pessoais</h2>
+              <h2 className="text-[#FF6B35] text-xl">Dados Pessoais</h2>
             </div>
 
             {/* Navbar Cadastro */}
-            <div className="flex gap-3 mb-8">
+            <div className="flex gap-2 mb-3">
               <Button
                 onClick={() => setTipoCadastro("usuario")}
-                className={`flex-1 py-3 rounded-xl transition ${
+                className={`flex-1 py-1.5 text-xs rounded-xl transition ${
                   tipoCadastro === "usuario"
                     ? "bg-[#FF6B35] hover:bg-[#e55a28] text-white"
                     : "bg-gray-100 hover:bg-gray-200 text-gray-700"
@@ -43,7 +55,7 @@ export function CadastroPage({ onNavigate }: CadastroPageProps) {
               </Button>
               <Button
                 onClick={() => setTipoCadastro("prestador")}
-                className={`flex-1 py-3 rounded-xl transition ${
+                className={`flex-1 py-1.5 text-xs rounded-xl transition ${
                   tipoCadastro === "prestador"
                     ? "bg-[#FF6B35] hover:bg-[#e55a28] text-white"
                     : "bg-gray-100 hover:bg-gray-200 text-gray-700"
@@ -53,7 +65,7 @@ export function CadastroPage({ onNavigate }: CadastroPageProps) {
               </Button>
             </div>
 
-            <div className="bg-white rounded-2xl p-8 border border-gray-100">
+            <div className="bg-white rounded-2xl p-4 border border-gray-100">
               {tipoCadastro === "usuario" ? (
                 <FormCadastroUsuario onNavigate={onNavigate} />
               ) : (
@@ -62,6 +74,7 @@ export function CadastroPage({ onNavigate }: CadastroPageProps) {
             </div>
           </div>
         </div>
+      </ScrollArea>
     </div>
   );
 }
@@ -82,22 +95,40 @@ function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
   const [loading, setLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const formatarDataParaDB = (data: string): string => {
-    // Converte de DD/MM/YYYY para YYYY-MM-DD
-    const partes = data.split("/");
-    if (partes.length === 3) {
-      return `${partes[2]}-${partes[1]}-${partes[0]}`;
+    let formattedValue = value;
+    
+    // Aplica formatação automática conforme o tipo de campo
+    if (field === "cpf") {
+      formattedValue = formatCPF(value);
+    } else if (field === "dataNascimento") {
+      formattedValue = formatDate(value);
     }
-    return data;
+    
+    setFormData((prev) => ({ ...prev, [field]: formattedValue }));
   };
 
   const handleSubmit = async () => {
     // Validação básica
     if (!formData.nomeCompleto || !formData.cpf || !formData.dataNascimento || !formData.email || !formData.senha) {
       toast.error("Por favor, preencha todos os campos");
+      return;
+    }
+
+    // Validação de CPF
+    if (!isValidCPF(formData.cpf)) {
+      toast.error("Por favor, insira um CPF válido com 11 dígitos");
+      return;
+    }
+
+    // Validação de email
+    if (!isValidEmail(formData.email)) {
+      toast.error("Por favor, insira um email válido");
+      return;
+    }
+
+    // Validação de senha
+    if (formData.senha.length < 6) {
+      toast.error("A senha deve ter no mínimo 6 caracteres");
       return;
     }
 
@@ -111,32 +142,58 @@ function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
       });
 
       if (authError) {
+        // Tratamento especial para rate limiting
+        if (authError.message.includes('For security purposes')) {
+          toast.error("Por favor, aguarde alguns segundos antes de tentar novamente. Isso é uma medida de segurança.");
+          return;
+        }
         throw authError;
       }
 
       // Se o usuário foi criado com sucesso, salvar dados adicionais na tabela usuarios
       if (authData.user) {
-        const { error: insertError } = await supabase
+        console.log("✅ Auth criado com sucesso. User ID:", authData.user.id);
+        
+        const dadosParaSalvar = {
+          nome_completo: formData.nomeCompleto,
+          cpf: unformatCPF(formData.cpf),
+          data_nascimento: formatDateToDB(formData.dataNascimento),
+          email: formData.email,
+        };
+        
+        console.log("📝 Tentando salvar na tabela usuarios:", dadosParaSalvar);
+        
+        const { data: insertedData, error: insertError } = await supabase
           .from("usuarios")
-          .insert([
-            {
-              id: authData.user.id,
-              nome_completo: formData.nomeCompleto,
-              cpf: formData.cpf.replace(/\D/g, ""), // Remove formatação do CPF
-              data_nascimento: formatarDataParaDB(formData.dataNascimento),
-              email: formData.email,
-            },
-          ]);
+          .insert([dadosParaSalvar]);
 
         if (insertError) {
-          console.error("Erro ao salvar dados do usuário:", insertError);
-          toast.error("Erro ao salvar dados. Tente novamente.");
+          console.error("❌ Erro ao salvar dados do usuário:");
+          console.error("   Código:", insertError.code);
+          console.error("   Mensagem:", insertError.message);
+          console.error("   Detalhes:", insertError.details);
+          console.error("   Hint:", insertError.hint);
+          
+          // Mensagem de erro mais específica
+          let errorMessage = "Erro ao salvar dados. Tente novamente.";
+          if (insertError.code === '23505') {
+            errorMessage = "Email ou CPF já cadastrado no sistema.";
+          } else if (insertError.code === '42P01') {
+            errorMessage = "Tabela não encontrada. Verifique a configuração do banco.";
+          } else if (insertError.message.includes('permission') || insertError.message.includes('row-level')) {
+            errorMessage = "Sem permissão para salvar. Verifique as configurações de segurança.";
+          }
+          
+          toast.error(errorMessage);
           setLoading(false);
           return;
         }
 
+        console.log("✅ Dados salvos com sucesso! ID:", insertedData);
         toast.success("Cadastro realizado com sucesso!");
         onNavigate?.("concluido");
+      } else {
+        console.warn("⚠️ Auth criado mas user é null/undefined");
       }
     } catch (error: any) {
       console.error("Erro ao cadastrar usuário:", error);
@@ -147,10 +204,10 @@ function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Nome Completo */}
       <div>
-        <Label htmlFor="nomeCompleto" className="text-gray-700 mb-2 block">
+        <Label htmlFor="nomeCompleto" className="text-gray-700 mb-1 block text-sm">
           Nome Completo
         </Label>
         <Input
@@ -165,7 +222,7 @@ function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
 
       {/* CPF */}
       <div>
-        <Label htmlFor="cpf" className="text-gray-700 mb-2 block">
+        <Label htmlFor="cpf" className="text-gray-700 mb-1 block text-sm">
           CPF
         </Label>
         <Input
@@ -180,7 +237,7 @@ function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
 
       {/* Data de nascimento */}
       <div>
-        <Label htmlFor="dataNascimento" className="text-gray-700 mb-2 block">
+        <Label htmlFor="dataNascimento" className="text-gray-700 mb-1 block text-sm">
           Data de nascimento
         </Label>
         <Input
@@ -195,7 +252,7 @@ function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
 
       {/* E-mail */}
       <div>
-        <Label htmlFor="email" className="text-gray-700 mb-2 block">
+        <Label htmlFor="email" className="text-gray-700 mb-1 block text-sm">
           E-mail
         </Label>
         <Input
@@ -210,7 +267,7 @@ function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
 
       {/* Senha */}
       <div>
-        <Label htmlFor="senha" className="text-gray-700 mb-2 block">
+        <Label htmlFor="senha" className="text-gray-700 mb-1 block text-sm">
           Senha
         </Label>
         <div className="relative">
@@ -236,15 +293,15 @@ function FormCadastroUsuario({ onNavigate }: FormCadastroUsuarioProps) {
       <Button 
         onClick={handleSubmit}
         disabled={loading}
-        className="w-full bg-[#FF6B35] hover:bg-[#e55a28] text-white py-6 rounded-xl text-lg mt-6 disabled:opacity-50"
+        className="w-full bg-[#FF6B35] hover:bg-[#e55a28] text-white py-2.5 rounded-xl text-sm mt-3 disabled:opacity-50"
       >
         {loading ? "Salvando..." : "Avançar"}
       </Button>
 
       {/* Link para Login */}
-      <div className="text-center mt-6">
-        <span className="text-gray-700">Já tem uma conta? </span>
-        <a href="#" className="text-[#FF6B35] hover:underline">
+      <div className="text-center mt-2">
+        <span className="text-gray-700 text-sm">Já tem uma conta? </span>
+        <a href="#" className="text-[#FF6B35] hover:underline text-sm">
           Entrar
         </a>
       </div>
@@ -266,83 +323,69 @@ function FormCadastroPrestador({ onNavigate }: FormCadastroPrestadorProps) {
     email: "",
     senha: "",
   });
-  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (field: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+    let formattedValue = value;
+    
+    // Aplica formatação automática conforme o tipo de campo
+    if (field === "documento") {
+      formattedValue = formatDocument(value);
+    } else if (field === "email" && value && !isValidEmail(value) && value.includes("@")) {
+      // Permite email incompleto durante a digitação, mas valida no submit
+      formattedValue = value;
+    }
+    
+    setFormData((prev) => ({ ...prev, [field]: formattedValue }));
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     // Validação básica
-    if (!formData.nome || !formData.sobrenome || !formData.documento) {
+    if (!formData.nome || !formData.sobrenome || !formData.documento || !formData.email || !formData.senha) {
       toast.error("Por favor, preencha todos os campos obrigatórios");
       return;
     }
 
-    setLoading(true);
-
-    try {
-      // Se houver email e senha, criar usuário no Auth do Supabase
-      let authUserId: string | undefined;
-
-      if (formData.email && formData.senha) {
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.senha,
-        });
-
-        if (authError) {
-          throw authError;
-        }
-
-        authUserId = authData.user?.id;
-      }
-
-      // Salvar dados do prestador na tabela prestadores
-      const { data: prestadorData, error: insertError } = await supabase
-        .from("prestadores")
-        .insert([
-          {
-            ...(authUserId && { id: authUserId }),
-            nome: formData.nome,
-            sobrenome: formData.sobrenome,
-            documento: formData.documento.replace(/\D/g, ""), // Remove formatação
-            genero: formData.genero || null,
-            rg_url: formData.rg_url || null,
-            ...(formData.email && { email: formData.email }),
-          },
-        ])
-        .select()
-        .single();
-
-      if (insertError) {
-        console.error("Erro ao salvar dados do prestador:", insertError);
-        toast.error("Erro ao salvar dados. Tente novamente.");
-        setLoading(false);
-        return;
-      }
-
-      toast.success("Cadastro realizado com sucesso!");
-      
-      // Armazenar ID do prestador para uso posterior (escolha de serviços)
-      if (prestadorData?.id) {
-        sessionStorage.setItem("prestadorId", prestadorData.id);
-      }
-
-      onNavigate?.("concluido");
-    } catch (error: any) {
-      console.error("Erro ao cadastrar prestador:", error);
-      toast.error(error.message || "Erro ao realizar cadastro. Tente novamente.");
-    } finally {
-      setLoading(false);
+    // Validação de documento (CPF ou CNPJ)
+    const documentoClean = unformatDocument(formData.documento);
+    if (documentoClean.length !== 11 && documentoClean.length !== 14) {
+      toast.error("Por favor, insira um CPF (11 dígitos) ou CNPJ (14 dígitos) válido");
+      return;
     }
+
+    // Validação de email (obrigatório)
+    if (!isValidEmail(formData.email)) {
+      toast.error("Por favor, insira um email válido");
+      return;
+    }
+
+    // Validação de senha (obrigatória)
+    if (formData.senha.length < 6) {
+      toast.error("A senha deve ter no mínimo 6 caracteres");
+      return;
+    }
+
+    // Armazenar dados pessoais no sessionStorage para salvar depois
+    const dadosPessoais = {
+      nome: formData.nome,
+      sobrenome: formData.sobrenome,
+      documento: unformatDocument(formData.documento), // Remove formatação
+      genero: formData.genero || null,
+      rg_url: formData.rg_url || null,
+      email: formData.email,
+      senha: formData.senha,
+    };
+
+    sessionStorage.setItem("prestadorDadosPessoais", JSON.stringify(dadosPessoais));
+
+    // Navegar para a tela de dados profissionais
+    onNavigate?.("cadastro-profissional");
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Nome */}
       <div>
-        <Label htmlFor="nome" className="text-gray-700 mb-2 block">
+        <Label htmlFor="nome" className="text-gray-700 mb-1 block text-sm">
           Nome
         </Label>
         <Input
@@ -357,7 +400,7 @@ function FormCadastroPrestador({ onNavigate }: FormCadastroPrestadorProps) {
 
       {/* Sobrenome */}
       <div>
-        <Label htmlFor="sobrenome" className="text-gray-700 mb-2 block">
+        <Label htmlFor="sobrenome" className="text-gray-700 mb-1 block text-sm">
           Sobrenome
         </Label>
         <Input
@@ -372,7 +415,7 @@ function FormCadastroPrestador({ onNavigate }: FormCadastroPrestadorProps) {
 
       {/* CNPJ ou CPF */}
       <div>
-        <Label htmlFor="documento" className="text-gray-700 mb-2 block">
+        <Label htmlFor="documento" className="text-gray-700 mb-1 block text-sm">
           CNPJ ou CPF
         </Label>
         <Input
@@ -387,7 +430,7 @@ function FormCadastroPrestador({ onNavigate }: FormCadastroPrestadorProps) {
 
       {/* Gênero */}
       <div>
-        <Label htmlFor="genero" className="text-gray-700 mb-2 block">
+        <Label htmlFor="genero" className="text-gray-700 mb-1 block text-sm">
           Genero
         </Label>
         <Select value={formData.genero} onValueChange={(value) => handleInputChange("genero", value)}>
@@ -405,7 +448,7 @@ function FormCadastroPrestador({ onNavigate }: FormCadastroPrestadorProps) {
 
       {/* RG ou Certidão de Nascimento */}
       <div>
-        <Label htmlFor="rg" className="text-gray-700 mb-2 block">
+        <Label htmlFor="rg" className="text-gray-700 mb-1 block text-sm">
           RG ou Certidão de Nascimento (URL)
         </Label>
         <Input
@@ -418,10 +461,10 @@ function FormCadastroPrestador({ onNavigate }: FormCadastroPrestadorProps) {
         />
       </div>
 
-      {/* E-mail (opcional para prestador) */}
+      {/* E-mail (obrigatório) */}
       <div>
-        <Label htmlFor="email-prestador" className="text-gray-700 mb-2 block">
-          E-mail (opcional)
+        <Label htmlFor="email-prestador" className="text-gray-700 mb-1 block text-sm">
+          E-mail
         </Label>
         <Input
           id="email-prestador"
@@ -433,30 +476,27 @@ function FormCadastroPrestador({ onNavigate }: FormCadastroPrestadorProps) {
         />
       </div>
 
-      {/* Senha (opcional, só se houver email) */}
-      {formData.email && (
-        <div>
-          <Label htmlFor="senha-prestador" className="text-gray-700 mb-2 block">
-            Senha (opcional)
-          </Label>
-          <Input
-            id="senha-prestador"
-            type="password"
-            placeholder="senhaSegura123"
-            className="w-full border-gray-200"
-            value={formData.senha}
-            onChange={(e) => handleInputChange("senha", e.target.value)}
-          />
-        </div>
-      )}
+      {/* Senha (obrigatória) */}
+      <div>
+        <Label htmlFor="senha-prestador" className="text-gray-700 mb-1 block text-sm">
+          Senha
+        </Label>
+        <Input
+          id="senha-prestador"
+          type="password"
+          placeholder="senhaSegura123"
+          className="w-full border-gray-200"
+          value={formData.senha}
+          onChange={(e) => handleInputChange("senha", e.target.value)}
+        />
+      </div>
 
       {/* Botão Avançar */}
       <Button 
         onClick={handleSubmit}
-        disabled={loading}
-        className="w-full bg-[#FF6B35] hover:bg-[#e55a28] text-white py-6 rounded-xl text-lg mt-6 disabled:opacity-50"
+        className="w-full bg-[#FF6B35] hover:bg-[#e55a28] text-white py-2.5 rounded-xl text-sm mt-3"
       >
-        {loading ? "Salvando..." : "Avançar"}
+        Avançar
       </Button>
     </div>
   );

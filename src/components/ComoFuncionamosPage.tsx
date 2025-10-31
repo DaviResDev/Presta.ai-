@@ -1,5 +1,4 @@
 import { Check } from "lucide-react";
-import { ScrollArea } from "./ui/scroll-area";
 import { TopBar } from "./TopBar";
 
 interface ComoFuncionamosPageProps {
@@ -8,12 +7,11 @@ interface ComoFuncionamosPageProps {
 
 export function ComoFuncionamosPage({ onNavigate }: ComoFuncionamosPageProps) {
   return (
-    <div className="h-full bg-white flex flex-col overflow-hidden">
+    <div className="min-h-screen bg-white">
       <TopBar activeLink="como-funcionamos" onNavigate={onNavigate} />
 
       {/* Main Content */}
-      <ScrollArea className="flex-1">
-        <div className="py-16 px-20 max-w-[1400px] mx-auto">
+      <div className="py-16 px-20 max-w-[1400px] mx-auto">
           {/* Título */}
           <div className="text-center mb-4">
             <h1 className="text-5xl mb-3">Como funcionamos?</h1>
@@ -111,7 +109,6 @@ export function ComoFuncionamosPage({ onNavigate }: ComoFuncionamosPageProps) {
             </div>
           </div>
         </div>
-      </ScrollArea>
     </div>
   );
 }
