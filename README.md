@@ -1,12 +1,5 @@
 
- # Presta.ai
-
- Plataforma web para conectar clientes a prestadores de serviço, com autenticação e dados hospedados no Supabase. Este repositório contém o front-end (Vite + React + TypeScript + Tailwind) e toda a documentação de banco (scripts SQL) usada para provisionar o backend no Supabase.
-
- - Repositório GitHub (remoto): `https://github.com/DaviResDev/Presta.ai-`
- - Documentação detalhada: veja a pasta `docs/` (scripts SQL e guias Supabase)
-
- ---
+ # Presta.aI
 
  ## Sumário
 
